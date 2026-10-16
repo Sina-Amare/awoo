@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#060a1f">
+<meta name="color-scheme" content="dark">
+<title>یه سگ پشت پنجره‌ته</title>
+<meta property="og:title" content="یه سگ پشت پنجره‌ته">
+<meta property="og:description" content="فقط با پنجه‌ی یه گربه باز می‌شه.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:,">
+<style>
+html{background:#060a1f}
+body{margin:0;min-height:100vh;min-height:100svh;padding:0 22px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#f1e9dd;font:17px/2 system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;-webkit-text-size-adjust:100%;
+background:radial-gradient(1.3px 1.3px at 16% 19%,rgba(241,233,221,.7),transparent),radial-gradient(1px 1px at 78% 12%,rgba(241,233,221,.55),transparent),radial-gradient(1.2px 1.2px at 64% 31%,rgba(241,233,221,.45),transparent),radial-gradient(1px 1px at 29% 71%,rgba(241,233,221,.35),transparent),radial-gradient(1.3px 1.3px at 86% 66%,rgba(241,233,221,.4),transparent),radial-gradient(130% 80% at 50% 42%,#0d1536,#060a1f 66%)}
+svg{width:56px;height:56px;fill:#f2a7b5;filter:drop-shadow(0 0 14px rgba(242,167,181,.35))}
+.loading svg{animation:pulse 2.4s ease-in-out infinite}
+.nokey svg,.badkey svg{opacity:.4;filter:none}
+p{display:none;margin:22px 0 0;max-width:19em;animation:in .8s ease both}
+.loading .l,.nokey .n,.badkey .b{display:block}
+.l{font-size:15px;opacity:.7}
+@keyframes pulse{0%,100%{opacity:.55;transform:scale(.92)}50%{opacity:1;transform:scale(1)}}
+@keyframes in{from{opacity:0}}
+@media (prefers-reduced-motion:reduce){svg,p{animation:none!important}}
+</style>
+</head>
+<body class="loading">
+<svg viewBox="0 0 64 64" aria-hidden="true">
+<ellipse cx="12.5" cy="30" rx="5.6" ry="7" transform="rotate(-24 12.5 30)"/>
+<ellipse cx="24.5" cy="18.5" rx="6" ry="7.6" transform="rotate(-8 24.5 18.5)"/>
+<ellipse cx="39.5" cy="18.5" rx="6" ry="7.6" transform="rotate(8 39.5 18.5)"/>
+<ellipse cx="51.5" cy="30" rx="5.6" ry="7" transform="rotate(24 51.5 30)"/>
+<path d="M32 34c-7.5 0-15.4 7.6-17.3 14.6-1.5 5.5 2.6 9.6 7.7 8.7 3.6-.7 6.2-2 9.6-2s6 1.3 9.6 2c5.1.9 9.2-3.2 7.7-8.7C47.4 41.6 39.5 34 32 34z"/>
+</svg>
+<div aria-live="polite">
+<p class="l">یه لحظه...</p>
+<p class="n">این نامه قفله.</p>
+<p class="b">این نامه فقط با لینک کامل باز می‌شه.</p>
+</div>
+<script>
+// Decrypts p.bin with the key from #k=<base64url> and replaces this page with the letter.
+// No external requests; everything stays inside this IIFE (document.open keeps the same window).
+(async function () {
+  var body = document.body, hash = /(?:^#|&)k=([^&]*)/.exec(location.hash);
+  if (!hash) { body.className = 'nokey'; return; }
+  try {
+    var k = hash[1];
+    if (!/^[A-Za-z0-9_-]{22}$/.test(k)) throw 0;   // 16 bytes = 22 base64url chars
+    var key = await crypto.subtle.importKey('raw', rawKey(k), { name: 'AES-CBC' }, false, ['decrypt']);   // throws without a secure context
+    var data = null;
+    for (var n = 0; n < 3 && !data; n++) {   // a slow or flaky network gets two retries
+      if (n) await new Promise(function (ok) { setTimeout(ok, 1500 * n); });
+      try {
+        var res = await fetch('p.bin', { cache: 'no-store' });
+        if (res.ok) data = new Uint8Array(await res.arrayBuffer());
+      } catch (e) {}
+    }
+    if (!data || data.length < 32) throw 0;
+    var html = new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-CBC', iv: data.slice(0, 16) }, key, data.slice(16)));
+    if (!/^﻿?\s*<!doctype html/i.test(html)) throw 0;   // a wrong key that happens to unpad cleanly
+    var head = /<head(?:\s[^>]*)?>/i.exec(html) || /<!doctype[^>]*>/i.exec(html), at = head.index + head[0].length;
+    html = html.slice(0, at) + '<meta name="referrer" content="no-referrer"><script>(' + locked + ')("' + k + '");<\/script>' + html.slice(at);
+    document.open(); document.write(html); document.close();
+  } catch (e) {
+    body.className = 'badkey';
+  }
+
+  function rawKey(k) {
+    var s = atob(k.replace(/-/g, '+').replace(/_/g, '/')), a = new Uint8Array(16);
+    for (var i = 0; i < 16; i++) a[i] = s.charCodeAt(i);
+    return a;
+  }
+  // Serialized into the decrypted page: window.Locked = { key, fetchDecrypt(url) -> Promise<ArrayBuffer> }.
+  function locked(K) {
+    var cryptoKey;
+    window.Locked = {
+      key: K,
+      fetchDecrypt: async function (url) {
+        if (!cryptoKey) {
+          var s = atob(K.replace(/-/g, '+').replace(/_/g, '/')), a = new Uint8Array(16);
+          for (var i = 0; i < 16; i++) a[i] = s.charCodeAt(i);
+          cryptoKey = crypto.subtle.importKey('raw', a, { name: 'AES-CBC' }, false, ['decrypt']);
+        }
+        var r = await fetch(url, { cache: 'no-cache' });
+        if (!r.ok) throw new Error(url + ': HTTP ' + r.status);
+        var d = new Uint8Array(await r.arrayBuffer());
+        return crypto.subtle.decrypt({ name: 'AES-CBC', iv: d.slice(0, 16) }, await cryptoKey, d.slice(16));
+      }
+    };
+  }
+})();
+</script>
+</body>
+</html>
